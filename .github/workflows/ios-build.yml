@@ -1,0 +1,79 @@
+name: iOS Build
+
+# 맥 없이 컴파일을 확인하기 위한 워크플로.
+# 결과는 PR의 체크와 Actions 탭에서 아이폰으로 바로 볼 수 있다.
+# public 저장소라 macOS 러너가 무료다 — 경로 필터 없이 모든 변경에서 돌린다.
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: ios-build-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: macos-latest
+    timeout-minutes: 25
+
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Xcode 버전 확인
+        run: xcodebuild -version
+
+      - name: XcodeGen 설치
+        run: brew install xcodegen
+
+      - name: 프로젝트 생성
+        run: xcodegen generate
+
+      # 시뮬레이터 타겟이라 서명이 필요 없다. 순수하게 컴파일만 확인한다.
+      - name: 빌드 (iOS 시뮬레이터)
+        run: |
+          set -o pipefail
+          xcodebuild build \
+            -project Walletless.xcodeproj \
+            -scheme Walletless \
+            -configuration Debug \
+            -destination 'generic/platform=iOS Simulator' \
+            CODE_SIGNING_ALLOWED=NO \
+            | tee build.log
+
+      # 전체 로그는 길다. 폰에서 읽을 수 있게 오류·경고만 뽑아 요약에 남긴다.
+      - name: 오류·경고 요약
+        if: always()
+        run: |
+          {
+            if [ "${{ job.status }}" = "success" ]; then
+              echo "### ✅ 빌드 성공"
+            else
+              echo "### ❌ 빌드 실패"
+            fi
+
+            errors=$(grep -E "error:" build.log 2>/dev/null | sort -u | head -40 || true)
+            warnings=$(grep -E "warning:" build.log 2>/dev/null | sort -u | head -40 || true)
+
+            if [ -n "$errors" ]; then
+              echo ""
+              echo "#### 오류"
+              echo '```'
+              echo "$errors"
+              echo '```'
+            fi
+
+            if [ -n "$warnings" ]; then
+              echo ""
+              echo "#### 경고"
+              echo '```'
+              echo "$warnings"
+              echo '```'
+            fi
+
+            if [ -z "$errors" ] && [ -z "$warnings" ]; then
+              echo ""
+              echo "오류도 경고도 없습니다."
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"

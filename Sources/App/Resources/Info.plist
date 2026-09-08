@@ -1,0 +1,64 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>CFBundleDevelopmentRegion</key>
+	<string>ko_KR</string>
+	<key>CFBundleDisplayName</key>
+	<string>지갑 없는 날</string>
+	<key>CFBundleExecutable</key>
+	<string>$(EXECUTABLE_NAME)</string>
+	<key>CFBundleIdentifier</key>
+	<string>$(PRODUCT_BUNDLE_IDENTIFIER)</string>
+	<key>CFBundleInfoDictionaryVersion</key>
+	<string>6.0</string>
+	<key>CFBundleName</key>
+	<string>$(PRODUCT_NAME)</string>
+	<key>CFBundlePackageType</key>
+	<string>APPL</string>
+	<key>CFBundleShortVersionString</key>
+	<string>$(MARKETING_VERSION)</string>
+	<key>CFBundleVersion</key>
+	<string>$(CURRENT_PROJECT_VERSION)</string>
+	<key>LSRequiresIPhoneOS</key>
+	<true/>
+	<key>UILaunchScreen</key>
+	<dict>
+		<key>UIColorName</key>
+		<string></string>
+	</dict>
+	<key>UISupportedInterfaceOrientations</key>
+	<array>
+		<string>UIInterfaceOrientationPortrait</string>
+	</array>
+	<key>UIUserInterfaceStyle</key>
+	<string>Dark</string>
+	<key>NSCameraUsageDescription</key>
+	<string>멤버십 카드 뒷면의 바코드를 읽어 등록하기 위해 카메라를 사용합니다. 촬영본은 저장되지 않습니다.</string>
+	<key>CFBundleURLTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleURLName</key>
+			<string>$(PRODUCT_BUNDLE_IDENTIFIER)</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>walletless</string>
+			</array>
+		</dict>
+	</array>
+	<!-- canOpenURL은 여기 등록된 scheme에만 답한다. 빠지면 무조건 false가 돌아온다. -->
+	<key>LSApplicationQueriesSchemes</key>
+	<array>
+		<string>kakaopay</string>
+		<string>kakaotalk</string>
+		<string>naverpayapp</string>
+		<string>naverpay</string>
+		<string>navercorp.naverpay</string>
+		<string>hyundaicard</string>
+		<string>hdcard</string>
+		<string>hyundaicardappcard</string>
+		<string>payco</string>
+		<string>paycoapp</string>
+	</array>
+</dict>
+</plist>
