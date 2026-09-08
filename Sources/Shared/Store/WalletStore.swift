@@ -5,6 +5,9 @@ import WidgetKit
 @MainActor
 final class WalletStore: ObservableObject {
     @Published private(set) var items: [WalletItem] = []
+    @Published private(set) var dayLog: DayLog = DayLogStorage.load()
+    /// 오늘 처음 꺼내 쓴 순간에만 채워진다. 홈에서 잠깐 보여주고 지운다.
+    @Published var newDayStreak: Int?
 
     init(items: [WalletItem]? = nil) {
         self.items = RankingEngine.ordered(items ?? WalletStorage.load())
@@ -49,7 +52,19 @@ final class WalletStore: ObservableObject {
         next[index].usageCount += 1
         next[index].lastUsedAt = Date()
         commit(next)
+        recordToday()
     }
+
+    /// 오늘 날짜를 기록에 남긴다. 하루에 한 번만 새로 잡힌다.
+    private func recordToday() {
+        var log = dayLog
+        guard log.record() else { return }
+        dayLog = log
+        DayLogStorage.save(log)
+        newDayStreak = log.currentStreak()
+    }
+
+    var currentStreak: Int { dayLog.currentStreak() }
 
     func replaceAll(_ newItems: [WalletItem]) {
         var next = newItems

@@ -7,6 +7,7 @@ final class AppRouter: ObservableObject {
     @Published var stagedItemID: UUID?
     @Published var showsOnboarding = false
     @Published var showsSettings = false
+    @Published var showsRecord = false
     @Published var editingItem: WalletItem?
     @Published var isAddingItem = false
 

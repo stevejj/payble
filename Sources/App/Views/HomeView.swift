@@ -19,6 +19,8 @@ struct HomeView: View {
             }
             .toolbar { toolbar }
             .toolbarBackground(.hidden, for: .navigationBar)
+            .overlay(alignment: .top) { newDayBanner }
+            .animation(.snappy, value: store.newDayStreak)
         }
         // 시리·단축어·제어 센터로 들어온 요청은 화면이 뜬 뒤에 집어간다.
         .onAppear(perform: consumePendingRoute)
@@ -32,6 +34,9 @@ struct HomeView: View {
         .sheet(isPresented: $router.showsSettings) {
             SettingsView()
         }
+        .sheet(isPresented: $router.showsRecord) {
+            RecordView()
+        }
         .sheet(isPresented: $router.isAddingItem) {
             ItemEditorView(item: nil)
         }
@@ -41,6 +46,22 @@ struct HomeView: View {
     }
 
     /// 세로로 한 장씩. 아래로 밀면 다음 후보.
+    /// 바코드가 떠 있는 동안에는 띄우지 않는다. 계산대 앞에서 방해가 된다.
+    @ViewBuilder
+    private var newDayBanner: some View {
+        if router.stagedItemID == nil, let streak = store.newDayStreak {
+            NewDayBanner(streak: streak) {
+                store.newDayStreak = nil
+                router.showsRecord = true
+            }
+            .transition(.move(edge: .top).combined(with: .opacity))
+            .task(id: streak) {
+                try? await Task.sleep(for: .seconds(3))
+                store.newDayStreak = nil
+            }
+        }
+    }
+
     private var cardStack: some View {
         ScrollView(.vertical) {
             LazyVStack(spacing: 0) {
@@ -76,14 +97,24 @@ struct HomeView: View {
     @ToolbarContentBuilder
     private var toolbar: some ToolbarContent {
         ToolbarItem(placement: .topBarLeading) {
-            Text("지갑 없는 날")
-                .font(.headline)
-                .foregroundStyle(.white.opacity(0.7))
+            Button {
+                router.showsRecord = true
+            } label: {
+                Text(homeTitle)
+                    .font(.headline)
+                    .foregroundStyle(.white.opacity(0.7))
+            }
         }
         ToolbarItemGroup(placement: .topBarTrailing) {
             Button("추가", systemImage: "plus") { router.isAddingItem = true }
             Button("설정", systemImage: "gearshape") { router.showsSettings = true }
         }
+    }
+
+    /// 기록이 쌓이면 제목 자리가 프레임을 대신 말해준다 — 사고가 아니라 선택이었다고.
+    private var homeTitle: String {
+        let streak = store.currentStreak
+        return streak > 0 ? "지갑 없이 \(streak)일째" : "지갑 없는 날"
     }
 
     private func consumePendingRoute() {
@@ -97,6 +128,25 @@ struct HomeView: View {
             get: { router.stagedItemID.flatMap(store.item(id:)) },
             set: { if $0 == nil { router.stagedItemID = nil } }
         )
+    }
+}
+
+private struct NewDayBanner: View {
+    let streak: Int
+    let action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            HStack(spacing: 8) {
+                Image(systemName: "checkmark.seal.fill")
+                Text("오늘도 지갑 없이 — \(streak)일째")
+                    .font(.subheadline.weight(.semibold))
+            }
+            .padding(.horizontal, 16)
+            .padding(.vertical, 10)
+            .background(.thinMaterial, in: Capsule())
+        }
+        .buttonStyle(.plain)
     }
 }
 
