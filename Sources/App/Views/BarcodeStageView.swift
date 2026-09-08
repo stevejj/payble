@@ -8,6 +8,9 @@ struct BarcodeStageView: View {
     @EnvironmentObject private var store: WalletStore
     @Environment(\.dismiss) private var dismiss
 
+    /// 아래로 쓸어내려 닫기. 손가락을 따라 내려가야 닫히는 중이라는 게 보인다.
+    @State private var dragOffset: CGFloat = 0
+
     init(item: WalletItem) {
         self.item = item
     }
@@ -38,7 +41,12 @@ struct BarcodeStageView: View {
                     .font(.footnote)
                     .foregroundStyle(.white.opacity(0.45))
             }
+            // 배경은 검은 채로 두고 내용만 따라 내려간다. 뒤가 비치면 계산대에서 산만하다.
+            .offset(y: dragOffset)
+            .opacity(1 - Double(min(dragOffset / 400, 0.5)))
         }
+        .contentShape(Rectangle())
+        .gesture(dismissDrag)
         .maxBrightnessWhileVisible()
         .overlay(alignment: .topTrailing) {
             Button {
@@ -57,5 +65,22 @@ struct BarcodeStageView: View {
             SpeedMetrics.shared.recordBarcodeShown()
             store.markUsed(id: item.id)
         }
+    }
+
+    /// 엑스 버튼은 그대로 두고, 아래로 쓸어내리는 길을 하나 더 낸다.
+    /// 위로는 끌리지 않는다 — 닫는 방향이 하나여야 헷갈리지 않는다.
+    private var dismissDrag: some Gesture {
+        DragGesture(minimumDistance: 12)
+            .onChanged { value in
+                dragOffset = max(0, value.translation.height)
+            }
+            .onEnded { value in
+                let travel = value.translation.height + value.predictedEndTranslation.height * 0.3
+                if travel > 140 {
+                    dismiss()
+                } else {
+                    withAnimation(.snappy(duration: 0.28)) { dragOffset = 0 }
+                }
+            }
     }
 }
