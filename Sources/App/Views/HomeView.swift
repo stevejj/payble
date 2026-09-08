@@ -5,6 +5,11 @@ struct HomeView: View {
     @EnvironmentObject private var router: AppRouter
     @EnvironmentObject private var pendingRoute: PendingRoute
 
+    /// 지금 맨 앞에 있는 카드. 끝없이 커지거나 작아지는 값이고, 실제 카드는 나머지 연산으로 고른다.
+    /// 그래서 3장이면 1 → 2 → 3 → 1 로 끝없이 돈다.
+    @State private var focused = 0
+    @GestureState private var dragAmount: CGFloat = 0
+
     init() {}
 
     var body: some View {
@@ -25,6 +30,8 @@ struct HomeView: View {
         // 시리·단축어·제어 센터로 들어온 요청은 화면이 뜬 뒤에 집어간다.
         .onAppear(perform: consumePendingRoute)
         .onChange(of: pendingRoute.pending) { _, _ in consumePendingRoute() }
+        // 카드가 늘거나 줄면 자리 계산이 어긋난다. 맨 앞으로 되돌린다.
+        .onChange(of: store.orderedItems.count) { _, _ in focused = 0 }
         .fullScreenCover(item: stagedItem) { item in
             BarcodeStageView(item: item)
         }
@@ -62,36 +69,90 @@ struct HomeView: View {
         }
     }
 
+    /// 애플 월렛처럼 겹쳐 쌓는다. 위아래로 밀면 다음 카드가 올라오고, 끝에서 처음으로 이어진다.
+    ///
+    /// 목록이 아니라 여전히 "한 장"이다 — 손이 닿는 것은 맨 앞 카드 하나이고,
+    /// 뒤 카드는 더 있다는 사실만 알려주는 정도로만 드러난다.
     private var cardStack: some View {
-        ScrollView(.vertical) {
-            LazyVStack(spacing: 0) {
-                ForEach(store.orderedItems) { item in
-                    ItemCardView(item: item) { router.activate(item, store: store) }
-                        // 카드 사이 여백은 프레임 안쪽에서 준다. 밖에서 주면 페이징 위치가 어긋난다.
-                        .padding(.vertical, 8)
-                        .containerRelativeFrame(.vertical, count: 1, spacing: 0)
-                        .contextMenu {
-                            Button("수정", systemImage: "pencil") { router.editingItem = item }
-                            Button("삭제", systemImage: "trash", role: .destructive) {
-                                store.delete(id: item.id)
-                            }
-                        }
+        GeometryReader { proxy in
+            let metrics = DeckMetrics(cardHeight: min(max(proxy.size.height * 0.62, 300), 560))
+            let progress = max(-1, min(1, -dragAmount / metrics.advance))
+
+            ZStack(alignment: .bottom) {
+                ForEach(visibleSlots, id: \.self) { slot in
+                    card(at: slot, progress: progress, metrics: metrics)
                 }
             }
-            .scrollTargetLayout()
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottom)
             .padding(.horizontal, 16)
+            .padding(.bottom, 40)
+            .contentShape(Rectangle())
+            .gesture(deckDrag(metrics: metrics))
         }
-        .scrollTargetBehavior(.paging)
-        .scrollIndicators(.hidden)
         .overlay(alignment: .bottom) {
             if store.orderedItems.count > 1 {
-                Label("아래로 밀면 다음", systemImage: "chevron.down")
+                Label("위아래로 밀면 다음 카드", systemImage: "chevron.up.chevron.down")
                     .font(.caption.weight(.medium))
-                    .foregroundStyle(.white.opacity(0.5))
-                    .padding(.bottom, 4)
+                    .foregroundStyle(.white.opacity(0.45))
+                    .padding(.bottom, 6)
                     .allowsHitTesting(false)
             }
         }
+    }
+
+    @ViewBuilder
+    private func card(at slot: Int, progress: CGFloat, metrics: DeckMetrics) -> some View {
+        let item = item(at: focused + slot)
+        let place = metrics.place(CGFloat(slot) - progress)
+
+        ItemCardView(item: item) {
+            if slot == 0 {
+                router.activate(item, store: store)
+            } else {
+                // 뒤에 있는 카드를 누르면 앞으로 데려온다. 월렛과 같은 감각.
+                withAnimation(.snappy(duration: 0.3)) { focused += slot }
+            }
+        }
+        .frame(height: metrics.cardHeight)
+        .scaleEffect(place.scale, anchor: .bottom)
+        .offset(y: place.y)
+        .opacity(place.opacity)
+        .zIndex(-Double(slot) + Double(progress))
+        .allowsHitTesting(place.opacity > 0.6)
+        .contextMenu {
+            Button("수정", systemImage: "pencil") { router.editingItem = item }
+            Button("삭제", systemImage: "trash", role: .destructive) { store.delete(id: item.id) }
+        }
+    }
+
+    private func deckDrag(metrics: DeckMetrics) -> some Gesture {
+        DragGesture(minimumDistance: 8)
+            .updating($dragAmount) { value, state, _ in
+                state = value.translation.height
+            }
+            .onEnded { value in
+                guard store.orderedItems.count > 1 else { return }
+                // 빠르게 튕기면 짧게 밀어도 넘어간다.
+                let travel = value.translation.height + value.predictedEndTranslation.height * 0.3
+                guard abs(travel) > metrics.advance * 0.45 else { return }
+                withAnimation(.snappy(duration: 0.32)) {
+                    focused += travel < 0 ? 1 : -1
+                }
+            }
+    }
+
+    /// 그릴 자리들. -1은 위로 빠져나가는 카드 자리다.
+    private var visibleSlots: [Int] {
+        let count = store.orderedItems.count
+        guard count > 1 else { return [0] }
+        return Array(-1...min(3, count - 1))
+    }
+
+    /// 끝에서 처음으로 이어지도록 나머지 연산으로 고른다.
+    private func item(at index: Int) -> WalletItem {
+        let items = store.orderedItems
+        let count = items.count
+        return items[((index % count) + count) % count]
     }
 
     @ToolbarContentBuilder
@@ -128,6 +189,33 @@ struct HomeView: View {
             get: { router.stagedItemID.flatMap(store.item(id:)) },
             set: { if $0 == nil { router.stagedItemID = nil } }
         )
+    }
+}
+
+/// 카드 더미의 배치 계산.
+///
+/// p는 카드의 연속적인 자리다. 0이 맨 앞, 1·2·3은 뒤로 갈수록,
+/// 음수는 위로 빠져나가는 중이라는 뜻이다. 드래그하면 p가 연속으로 움직인다.
+private struct DeckMetrics {
+    let cardHeight: CGFloat
+
+    /// 뒤 카드가 위로 얼마나 고개를 내미는지
+    var peek: CGFloat { 34 }
+    /// 한 장 넘기는 데 필요한 드래그 거리
+    var advance: CGFloat { max(120, cardHeight * 0.3) }
+
+    func place(_ p: CGFloat) -> (y: CGFloat, scale: CGFloat, opacity: Double) {
+        if p < 0 {
+            // 위로 빠져나가며 사라진다
+            let t = min(-p, 1)
+            return (y: -t * cardHeight * 0.92, scale: 1, opacity: Double(1 - t))
+        }
+        let depth = min(p, 3)
+        // 뒤로 갈수록 간격이 좁아지게. 일정 간격이면 계단처럼 보인다.
+        let y = -peek * CGFloat(pow(Double(depth), 0.8))
+        let scale = 1 - 0.045 * depth
+        let opacity = p > 2.4 ? Double(max(0, 1 - (p - 2.4) / 0.6)) : 1
+        return (y: y, scale: scale, opacity: opacity)
     }
 }
 
