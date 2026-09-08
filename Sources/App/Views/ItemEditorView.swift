@@ -22,6 +22,12 @@ struct ItemEditorView: View {
     @State private var places: [PlaceCategory] = []
     @State private var isScanning = false
 
+    /// 숫자 키패드에는 완료 키가 없다. 한 번 뜨면 스스로 내려가지 않으므로
+    /// 어느 칸에 있는지 들고 있다가 직접 내린다.
+    @FocusState private var focusedField: Field?
+
+    private enum Field: Hashable { case value, name, memo }
+
     init(
         item: WalletItem?,
         initialName: String? = nil,
@@ -55,18 +61,35 @@ struct ItemEditorView: View {
 
                 Section("보기") {
                     TextField("이름", text: $name)
+                        .focused($focusedField, equals: .name)
+                        .submitLabel(.done)
                     TextField("메모 (선택)", text: $memo)
+                        .focused($focusedField, equals: .memo)
+                        .submitLabel(.done)
                     colorPicker
                 }
             }
+            // 빈 곳을 누르면 키보드가 내려간다. 칸이나 버튼을 누른 것은
+            // 그쪽이 먼저 가져가므로 여기까지 오지 않는다.
+            .onTapGesture { focusedField = nil }
+            .onSubmit { focusedField = nil }
+            .onChange(of: kind) { _, _ in focusedField = nil }
+            .onChange(of: symbology) { _, _ in focusedField = nil }
             .navigationTitle(item == nil ? "카드 추가" : "카드 수정")
             .navigationBarTitleDisplayMode(.inline)
+            // 아래로 쓸어서 시트가 닫히면 입력하던 것이 통째로 날아간다. 나가는 문은 '취소' 하나.
+            .interactiveDismissDisabled()
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("취소") { dismiss() }
                 }
                 ToolbarItem(placement: .confirmationAction) {
                     Button("저장") { save() }.disabled(!canSave)
+                }
+                // 숫자 키패드로 들어왔을 때 빠져나올 유일한 문.
+                ToolbarItemGroup(placement: .keyboard) {
+                    Spacer()
+                    Button("완료") { focusedField = nil }
                 }
             }
             .sheet(isPresented: $isScanning) {
@@ -79,6 +102,7 @@ struct ItemEditorView: View {
     private var membershipSection: some View {
         Section {
             Button {
+                focusedField = nil
                 isScanning = true
             } label: {
                 Label("카메라로 스캔", systemImage: "barcode.viewfinder")
@@ -91,6 +115,7 @@ struct ItemEditorView: View {
             }
 
             TextField("바코드 번호", text: $value)
+                .focused($focusedField, equals: .value)
                 .keyboardType(symbology.isNumericOnly ? .numberPad : .default)
                 .autocorrectionDisabled()
                 .textInputAutocapitalization(.never)
@@ -125,6 +150,7 @@ struct ItemEditorView: View {
                     PlaceCategory.from(chip: chip).map(places.contains) ?? false
                 },
                 onTap: { chip in
+                    focusedField = nil
                     guard let place = PlaceCategory.from(chip: chip) else { return }
                     if let index = places.firstIndex(of: place) {
                         places.remove(at: index)
@@ -164,7 +190,10 @@ struct ItemEditorView: View {
                     .overlay(
                         Circle().stroke(Color.primary, lineWidth: tintHex == hex ? 2 : 0)
                     )
-                    .onTapGesture { tintHex = hex }
+                    .onTapGesture {
+                        focusedField = nil
+                        tintHex = hex
+                    }
             }
         }
         .padding(.vertical, 4)
@@ -176,6 +205,7 @@ struct ItemEditorView: View {
                 symbology = scanned.symbology
                 value = scanned.value
                 isScanning = false
+                focusedField = nil
             }
             .ignoresSafeArea()
             .navigationTitle("바코드 스캔")
