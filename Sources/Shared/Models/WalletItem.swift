@@ -15,6 +15,9 @@ struct WalletItem: Identifiable, Codable, Hashable, Sendable {
     var barcode: Barcode?
     /// PayAppCatalog의 키. kind == .payApp일 때만 값이 있다.
     var payAppID: String?
+    /// 어디서 쓰는 카드인지. 사용자가 직접 고른다 — 앱이 추측하지 않는다.
+    /// 저장 파일에 이 키가 없던 시절의 데이터도 읽히도록 옵셔널로 둔다.
+    private var placeTags: [PlaceCategory]?
     var tintHex: String
     /// 사용자가 직접 정한 순서. 낮을수록 앞. (1차에서는 이게 유일한 정렬 신호)
     var order: Int
@@ -29,6 +32,7 @@ struct WalletItem: Identifiable, Codable, Hashable, Sendable {
         memo: String = "",
         barcode: Barcode? = nil,
         payAppID: String? = nil,
+        places: [PlaceCategory] = [],
         tintHex: String = "#3B5BDB",
         order: Int = 0,
         usageCount: Int = 0,
@@ -41,11 +45,21 @@ struct WalletItem: Identifiable, Codable, Hashable, Sendable {
         self.memo = memo
         self.barcode = barcode
         self.payAppID = payAppID
+        self.placeTags = places.isEmpty ? nil : places
         self.tintHex = tintHex
         self.order = order
         self.usageCount = usageCount
         self.lastUsedAt = lastUsedAt
         self.createdAt = createdAt
+    }
+
+    var places: [PlaceCategory] {
+        get { placeTags ?? [] }
+        set { placeTags = newValue.isEmpty ? nil : newValue }
+    }
+
+    var placeSummary: String {
+        places.map(\.title).joined(separator: " · ")
     }
 
     var payApp: PayApp? {
@@ -54,7 +68,11 @@ struct WalletItem: Identifiable, Codable, Hashable, Sendable {
     }
 
     /// 카드에 적히는 한 줄. 계산대 앞에서 읽을 수 있어야 하므로 짧게.
+    ///
+    /// 사용처를 가장 앞에 둔다. 등록해두고 언제 꺼내야 할지 몰라서 못 쓰는 경우가
+    /// 많은데, 그 답이 카드에 적혀 있어야 한다.
     var subtitle: String {
+        if !places.isEmpty { return placeSummary }
         if !memo.isEmpty { return memo }
         switch kind {
         case .membership:

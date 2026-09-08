@@ -6,9 +6,9 @@ struct OnboardingView: View {
     @EnvironmentObject private var router: AppRouter
 
     @State private var step = 0
-    @State private var selectedPlaces: Set<PlaceType> = []
+    @State private var selectedPlaces: [PlaceCategory] = []
     @State private var selectedApps: Set<String> = []
-    @State private var pendingName: PendingName?
+    @State private var pendingCard: PendingCard?
 
     init() {}
 
@@ -36,27 +36,35 @@ struct OnboardingView: View {
                 }
             }
         }
-        .sheet(item: $pendingName) { name in
-            ItemEditorView(item: nil, initialName: name.value, autoScan: true)
+        .sheet(item: $pendingCard) { card in
+            ItemEditorView(
+                item: nil,
+                initialName: card.name,
+                initialPlaces: card.places,
+                autoScan: true
+            )
         }
     }
 
     private var placeStep: some View {
         OnboardingStep(
             title: "어디에 자주 가세요?",
-            subtitle: "고른 곳에 맞춰 등록할 카드를 추천해드려요"
+            subtitle: "고른 곳이 카드에 그대로 적혀서, 나중에 언제 꺼내야 할지 헷갈리지 않습니다"
         ) {
-            FlowChips(items: PlaceType.allCases.map(\.title)) { title in
-                guard let place = PlaceType.allCases.first(where: { $0.title == title }) else { return false }
-                return selectedPlaces.contains(place)
-            } onTap: { title in
-                guard let place = PlaceType.allCases.first(where: { $0.title == title }) else { return }
-                if selectedPlaces.contains(place) {
-                    selectedPlaces.remove(place)
-                } else {
-                    selectedPlaces.insert(place)
+            ChipGrid(
+                items: PlaceCategory.allCases.map(\.chip),
+                isSelected: { chip in
+                    PlaceCategory.from(chip: chip).map(selectedPlaces.contains) ?? false
+                },
+                onTap: { chip in
+                    guard let place = PlaceCategory.from(chip: chip) else { return }
+                    if let index = selectedPlaces.firstIndex(of: place) {
+                        selectedPlaces.remove(at: index)
+                    } else {
+                        selectedPlaces.append(place)
+                    }
                 }
-            }
+            )
         }
     }
 
@@ -96,11 +104,16 @@ struct OnboardingView: View {
             subtitle: "카드 뒷면을 카메라로 비추면 끝이에요"
         ) {
             VStack(spacing: 12) {
-                FlowChips(items: suggestedNames) { _ in false } onTap: { name in
-                    pendingName = PendingName(value: name)
-                }
+                ChipGrid(
+                    items: suggestions.map { ChipItem(id: $0.rawValue, title: $0.suggestedCardName) },
+                    isSelected: { _ in false },
+                    onTap: { chip in
+                        guard let place = PlaceCategory(rawValue: chip.id) else { return }
+                        pendingCard = PendingCard(name: place.suggestedCardName, places: [place])
+                    }
+                )
                 Button {
-                    pendingName = PendingName(value: "")
+                    pendingCard = PendingCard(name: "", places: [])
                 } label: {
                     Label("직접 등록하기", systemImage: "barcode.viewfinder")
                         .frame(maxWidth: .infinity)
@@ -112,9 +125,9 @@ struct OnboardingView: View {
         }
     }
 
-    private var suggestedNames: [String] {
-        let places = selectedPlaces.isEmpty ? Set(PlaceType.allCases) : selectedPlaces
-        return PlaceType.allCases.filter(places.contains).flatMap(\.suggestions)
+    /// 1단계에서 고른 곳이 있으면 그것만, 없으면 흔한 것 몇 개.
+    private var suggestions: [PlaceCategory] {
+        selectedPlaces.isEmpty ? [.convenience, .cafe, .mart] : selectedPlaces
     }
 
     private func advance() {
@@ -136,10 +149,11 @@ struct OnboardingView: View {
     }
 }
 
-/// sheet(item:)에 문자열을 물리기 위한 얇은 래퍼.
-private struct PendingName: Identifiable {
-    let value: String
-    var id: String { value }
+/// sheet(item:)에 물리기 위한 얇은 래퍼.
+private struct PendingCard: Identifiable {
+    let id = UUID()
+    let name: String
+    let places: [PlaceCategory]
 }
 
 private struct OnboardingStep<Content: View>: View {
@@ -159,64 +173,6 @@ private struct OnboardingStep<Content: View>: View {
             }
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding(24)
-        }
-    }
-}
-
-private struct FlowChips: View {
-    let items: [String]
-    let isSelected: (String) -> Bool
-    let onTap: (String) -> Void
-
-    private let columns = [GridItem(.adaptive(minimum: 100), spacing: 8)]
-
-    var body: some View {
-        LazyVGrid(columns: columns, alignment: .leading, spacing: 8) {
-            ForEach(items, id: \.self) { item in
-                // 배경까지 탭 영역에 들어오도록 label 안에서 꾸민다.
-                Button {
-                    onTap(item)
-                } label: {
-                    Text(item)
-                        .font(.subheadline.weight(.medium))
-                        .padding(.horizontal, 14)
-                        .padding(.vertical, 10)
-                        .frame(maxWidth: .infinity)
-                        .background(
-                            isSelected(item) ? Color.accentColor.opacity(0.2) : Color.secondary.opacity(0.12),
-                            in: Capsule()
-                        )
-                        .contentShape(Capsule())
-                }
-                .buttonStyle(.plain)
-            }
-        }
-    }
-}
-
-enum PlaceType: String, CaseIterable, Identifiable {
-    case convenience, cafe, mart, transit, walk
-
-    var id: String { rawValue }
-
-    var title: String {
-        switch self {
-        case .convenience: return "편의점"
-        case .cafe: return "카페"
-        case .mart: return "마트"
-        case .transit: return "대중교통"
-        case .walk: return "러닝 · 산책"
-        }
-    }
-
-    /// 카드 이름 추천. 정확한 브랜드 목록이 아니라 입력을 줄여주는 힌트일 뿐이다.
-    var suggestions: [String] {
-        switch self {
-        case .convenience: return ["편의점 멤버십"]
-        case .cafe: return ["카페 적립"]
-        case .mart: return ["마트 포인트"]
-        case .transit: return ["교통 관련"]
-        case .walk: return ["동네 적립"]
         }
     }
 }

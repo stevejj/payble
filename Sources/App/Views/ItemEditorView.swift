@@ -4,6 +4,8 @@ import SwiftUI
 struct ItemEditorView: View {
     let item: WalletItem?
     var initialName: String? = nil
+    /// 온보딩에서 고른 장소를 미리 켜둔다.
+    var initialPlaces: [PlaceCategory] = []
     /// 온보딩처럼 "지금 바로 스캔"으로 들어오는 경로에서 쓴다.
     var autoScan = false
 
@@ -17,11 +19,18 @@ struct ItemEditorView: View {
     @State private var value = ""
     @State private var payAppID = PayAppCatalog.all.first?.id ?? ""
     @State private var tintHex = TintPalette.all[0]
+    @State private var places: [PlaceCategory] = []
     @State private var isScanning = false
 
-    init(item: WalletItem?, initialName: String? = nil, autoScan: Bool = false) {
+    init(
+        item: WalletItem?,
+        initialName: String? = nil,
+        initialPlaces: [PlaceCategory] = [],
+        autoScan: Bool = false
+    ) {
         self.item = item
         self.initialName = initialName
+        self.initialPlaces = initialPlaces
         self.autoScan = autoScan
     }
 
@@ -41,6 +50,8 @@ struct ItemEditorView: View {
                 } else {
                     payAppSection
                 }
+
+                placeSection
 
                 Section("보기") {
                     TextField("이름", text: $name)
@@ -102,6 +113,31 @@ struct ItemEditorView: View {
             Text("바코드")
         } footer: {
             Text(symbology.hint)
+        }
+    }
+
+    /// 등록해두고 언제 꺼내야 할지 몰라서 못 쓰는 문제를 카드 자체에서 푼다.
+    private var placeSection: some View {
+        Section {
+            ChipGrid(
+                items: PlaceCategory.allCases.map(\.chip),
+                isSelected: { chip in
+                    PlaceCategory.from(chip: chip).map(places.contains) ?? false
+                },
+                onTap: { chip in
+                    guard let place = PlaceCategory.from(chip: chip) else { return }
+                    if let index = places.firstIndex(of: place) {
+                        places.remove(at: index)
+                    } else {
+                        places.append(place)
+                    }
+                }
+            )
+            .padding(.vertical, 4)
+        } header: {
+            Text("사용처")
+        } footer: {
+            Text("고른 장소가 카드에 적혀서, 언제 꺼내야 하는지 바로 보입니다. 여러 개 고를 수 있습니다.")
         }
     }
 
@@ -173,6 +209,7 @@ struct ItemEditorView: View {
     private func loadIfNeeded() {
         guard let item else {
             if let initialName, name.isEmpty { name = initialName }
+            if places.isEmpty { places = initialPlaces }
             if autoScan && !isScanning && value.isEmpty { isScanning = true }
             return
         }
@@ -180,6 +217,7 @@ struct ItemEditorView: View {
         name = item.name
         memo = item.memo
         tintHex = item.tintHex
+        places = item.places
         if let barcode = item.barcode {
             symbology = barcode.symbology
             value = barcode.value
@@ -193,6 +231,7 @@ struct ItemEditorView: View {
         next.name = name.trimmingCharacters(in: .whitespaces)
         next.memo = memo.trimmingCharacters(in: .whitespaces)
         next.tintHex = tintHex
+        next.places = places
         switch kind {
         case .membership:
             next.barcode = preview
