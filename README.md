@@ -183,7 +183,24 @@ Sources/
   Widget/        홈 위젯 + 잠금화면 위젯 + 제어 센터 컨트롤
 Scripts/
   free-signing.sh  무료 Apple ID로 실기기에 올리기 위한 설정 (make free)
+  make-icon.py     앱 아이콘 생성기 (디자인 도구 없이 다시 만들 수 있게)
 ```
+
+## 아이콘
+
+바코드 막대 다섯 개. 맨 앞 하나만 액센트 색인데, 이 앱이 하는 일이
+**맨 앞 카드를 꺼내주는 것**이기 때문입니다.
+
+홈 화면에서 60pt로 줄어들어도 읽히도록 막대를 적게, 굵게 잡았습니다.
+`Scripts/make-icon.py`가 외부 라이브러리 없이 PNG를 직접 만듭니다.
+
+```bash
+python3 Scripts/make-icon.py          # 시안 3종을 build/icons/ 에 생성
+python3 Scripts/make-icon.py ink      # 고른 시안을 에셋 카탈로그에 설치
+```
+
+시안은 `ink`(짙은 배경) · `paper`(밝은 배경) · `blue`(파란 배경) 세 가지이고
+현재 `ink`가 적용되어 있습니다. 색이나 막대 배치는 스크립트 상단에서 바꿉니다.
 
 ## 다음 단계 (기획서 7·9절)
 
