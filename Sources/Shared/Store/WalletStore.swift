@@ -66,6 +66,14 @@ final class WalletStore: ObservableObject {
 
     var currentStreak: Int { dayLog.currentStreak() }
 
+    /// 장소 묶기를 켜고 끈다. 저장된 순서 값은 건드리지 않는다 —
+    /// 묶기는 저장이 아니라 보여줄 때의 변환이라, 끄면 원래 손으로 정한 순서로 돌아온다.
+    func setPlaceGrouping(_ enabled: Bool) {
+        PlaceGrouping.isEnabled = enabled
+        items = RankingEngine.ordered(items)
+        WidgetCenter.shared.reloadAllTimelines()
+    }
+
     func replaceAll(_ newItems: [WalletItem]) {
         var next = newItems
         for index in next.indices { next[index].order = index }
