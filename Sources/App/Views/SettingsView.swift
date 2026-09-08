@@ -14,8 +14,11 @@ struct SettingsView: View {
                 speedSection
 
                 Section {
+                    NavigationLink("탭 없이 열기") { QuickLaunchGuideView() }
                     NavigationLink("순서 정하기") { ReorderView() }
                     NavigationLink("딥링크 진단") { DeepLinkDoctorView() }
+                } footer: {
+                    Text("뒷면 탭·액션 버튼·시리에 연결하면 앱을 열지 않고 바로 바코드가 뜹니다.")
                 }
 
                 Section {
@@ -71,7 +74,7 @@ struct SettingsView: View {
                         .foregroundStyle(.orange)
                 }
             }
-            ForEach([DeepLink.Source.app, .widget, .lockScreen], id: \.rawValue) { entry in
+            ForEach(DeepLink.Source.allCases, id: \.rawValue) { entry in
                 if let median = metrics.medianSeconds(for: entry) {
                     LabeledContent(entry.label) {
                         Text(String(format: "%.1f초 · %d회", median, metrics.count(for: entry)))

@@ -26,15 +26,36 @@ final class AppRouter: ObservableObject {
         showsOnboarding = true
     }
 
-    func handle(_ url: URL) {
+    func handle(_ url: URL, store: WalletStore) {
         switch DeepLink.route(for: url) {
         case .barcode(let id, let source):
-            // 링크로 바로 들어왔다. 탭 한 번으로 여기까지 왔다는 뜻.
-            SpeedMetrics.shared.setEntry(source)
-            SpeedMetrics.shared.countTap()
+            enter(source)
             stagedItemID = id
+        case .topBarcode(let source):
+            // 링크를 만든 쪽은 카드가 뭔지 모른다. 여기서 맨 앞 카드를 고른다.
+            enter(source)
+            stagedItemID = store.topBarcodeItem?.id
         case .home, .none:
             break
+        }
+    }
+
+    /// 시리·단축어·제어 센터가 남긴 요청을 화면이 준비된 뒤 집어간다.
+    func open(_ request: PendingRoute.Request, store: WalletStore) {
+        enter(.shortcut)
+        switch request {
+        case .top:
+            stagedItemID = store.topBarcodeItem?.id
+        case .item(let id):
+            stagedItemID = id
+        }
+    }
+
+    private func enter(_ source: DeepLink.Source) {
+        SpeedMetrics.shared.setEntry(source)
+        // 탭 없이 도달하는 경로는 탭을 세지 않는다. 그게 이 경로의 존재 이유다.
+        if !source.isTapless {
+            SpeedMetrics.shared.countTap()
         }
     }
 

@@ -3,6 +3,7 @@ import SwiftUI
 struct HomeView: View {
     @EnvironmentObject private var store: WalletStore
     @EnvironmentObject private var router: AppRouter
+    @EnvironmentObject private var pendingRoute: PendingRoute
 
     init() {}
 
@@ -19,6 +20,9 @@ struct HomeView: View {
             .toolbar { toolbar }
             .toolbarBackground(.hidden, for: .navigationBar)
         }
+        // 시리·단축어·제어 센터로 들어온 요청은 화면이 뜬 뒤에 집어간다.
+        .onAppear(perform: consumePendingRoute)
+        .onChange(of: pendingRoute.pending) { _, _ in consumePendingRoute() }
         .fullScreenCover(item: stagedItem) { item in
             BarcodeStageView(item: item)
         }
@@ -80,6 +84,11 @@ struct HomeView: View {
             Button("추가", systemImage: "plus") { router.isAddingItem = true }
             Button("설정", systemImage: "gearshape") { router.showsSettings = true }
         }
+    }
+
+    private func consumePendingRoute() {
+        guard let request = pendingRoute.take() else { return }
+        router.open(request, store: store)
     }
 
     /// 딥링크로 들어온 항목을 fullScreenCover에 물려주기 위한 바인딩.

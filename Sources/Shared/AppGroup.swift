@@ -20,25 +20,46 @@ enum DeepLink {
     static let scheme = "walletless"
 
     /// 어디서 들어왔는지. 진입 경로별 속도를 따로 재기 위해 링크에 실어 보낸다.
-    enum Source: String, Codable, Sendable {
+    enum Source: String, Codable, Sendable, CaseIterable {
         case app
         case widget
         case lockScreen
+        case shortcut     // 시리 · 단축어 · 뒷면 탭 · 액션 버튼 · Spotlight
+        case control      // 제어 센터
 
         var label: String {
             switch self {
             case .app: return "앱 아이콘"
             case .widget: return "홈 위젯"
             case .lockScreen: return "잠금화면"
+            case .shortcut: return "시리 · 뒷면 탭"
+            case .control: return "제어 센터"
             }
+        }
+
+        /// 탭 없이 도달하는 경로인지. 이 앱이 노리는 것은 이쪽이다.
+        var isTapless: Bool {
+            self == .shortcut || self == .control
         }
     }
 
+    /// 어떤 카드인지 모르는 쪽(제어 센터, App Group 없는 위젯)에서 쓰는 링크.
+    /// 앱이 열릴 때 맨 앞 카드를 스스로 골라 연다 — 데이터 공유가 필요 없다.
+    static func topBarcode(from source: Source = .widget) -> URL {
+        url(path: topKeyword, source: source)
+    }
+
     static func barcode(_ id: UUID, from source: Source = .widget) -> URL {
+        url(path: id.uuidString, source: source)
+    }
+
+    private static let topKeyword = "top"
+
+    private static func url(path: String, source: Source) -> URL {
         var components = URLComponents()
         components.scheme = scheme
         components.host = "barcode"
-        components.path = "/\(id.uuidString)"
+        components.path = "/\(path)"
         components.queryItems = [URLQueryItem(name: "from", value: source.rawValue)]
         return components.url!
     }
@@ -47,6 +68,8 @@ enum DeepLink {
 
     enum Route: Equatable {
         case barcode(UUID, Source)
+        /// 맨 앞 카드. 링크를 만든 쪽이 카드 목록을 모를 때 쓴다.
+        case topBarcode(Source)
         case home
     }
 
@@ -54,11 +77,13 @@ enum DeepLink {
         guard url.scheme == scheme else { return nil }
         switch url.host {
         case "barcode", "item":
-            let raw = url.pathComponents.first { $0 != "/" }
-            guard let raw, let id = UUID(uuidString: raw) else { return nil }
+            guard let raw = url.pathComponents.first(where: { $0 != "/" }) else { return nil }
             let rawSource = URLComponents(url: url, resolvingAgainstBaseURL: false)?
                 .queryItems?.first { $0.name == "from" }?.value
-            return .barcode(id, rawSource.flatMap(Source.init(rawValue:)) ?? .widget)
+            let source = rawSource.flatMap(Source.init(rawValue:)) ?? .widget
+            if raw == topKeyword { return .topBarcode(source) }
+            guard let id = UUID(uuidString: raw) else { return nil }
+            return .barcode(id, source)
         case "home":
             return .home
         default:

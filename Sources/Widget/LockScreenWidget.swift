@@ -36,10 +36,10 @@ struct LockScreenView: View {
             HStack(spacing: 8) {
                 Image(systemName: "barcode")
                 VStack(alignment: .leading, spacing: 2) {
-                    Text(entry.items.first?.name ?? "지갑 없는 날")
+                    Text(entry.items.first?.name ?? "바코드")
                         .font(.headline)
                         .lineLimit(1)
-                    Text(entry.items.isEmpty ? "카드 등록하기" : "탭하면 바코드")
+                    Text(entry.items.isEmpty && entry.sharedContainerAvailable ? "카드 등록하기" : "탭하면 바코드")
                         .font(.caption2)
                         .foregroundStyle(.secondary)
                 }
@@ -49,7 +49,12 @@ struct LockScreenView: View {
     }
 
     private var destination: URL {
-        guard let first = entry.items.first else { return DeepLink.home }
-        return DeepLink.barcode(first.id, from: .lockScreen)
+        if let first = entry.items.first {
+            return DeepLink.barcode(first.id, from: .lockScreen)
+        }
+        // 카드를 읽지 못하는 상태(App Group 없음)에서도 앱이 맨 앞 카드를 열 수 있다.
+        return entry.sharedContainerAvailable
+            ? DeepLink.home
+            : DeepLink.topBarcode(from: .lockScreen)
     }
 }

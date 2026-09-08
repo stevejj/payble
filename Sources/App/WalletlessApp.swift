@@ -5,6 +5,7 @@ struct WalletlessApp: App {
     @StateObject private var store = WalletStore()
     @StateObject private var router = AppRouter()
     @StateObject private var metrics = SpeedMetrics.shared
+    @StateObject private var pendingRoute = PendingRoute.shared
     @Environment(\.scenePhase) private var scenePhase
 
     var body: some Scene {
@@ -13,7 +14,8 @@ struct WalletlessApp: App {
                 .environmentObject(store)
                 .environmentObject(router)
                 .environmentObject(metrics)
-                .onOpenURL { router.handle($0) }
+                .environmentObject(pendingRoute)
+                .onOpenURL { router.handle($0, store: store) }
                 .preferredColorScheme(.dark)
         }
         .onChange(of: scenePhase) { _, phase in

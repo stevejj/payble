@@ -71,15 +71,17 @@ struct QuickAccessView: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 
+    /// 카드를 읽지 못하는 상태에서도 위젯은 여전히 최단 경로여야 한다.
+    /// 이름을 못 띄울 뿐, 맨 앞 카드를 여는 것은 앱이 스스로 할 수 있다.
     private var emptyState: some View {
         VStack(spacing: 6) {
-            Image(systemName: "barcode.viewfinder")
+            Image(systemName: "barcode")
                 .font(.title2)
-            Text("카드를 먼저 등록하세요")
+            Text(entry.sharedContainerAvailable ? "카드를 먼저 등록하세요" : "바코드 열기")
                 .font(.caption)
                 .multilineTextAlignment(.center)
         }
         .foregroundStyle(.secondary)
-        .widgetURL(DeepLink.home)
+        .widgetURL(entry.sharedContainerAvailable ? DeepLink.home : DeepLink.topBarcode(from: .widget))
     }
 }

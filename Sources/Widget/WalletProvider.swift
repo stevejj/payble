@@ -3,13 +3,20 @@ import WidgetKit
 struct WalletEntry: TimelineEntry {
     let date: Date
     let items: [WalletItem]
+    /// App Group이 없으면 위젯은 앱의 카드를 아예 못 읽는다.
+    /// "카드가 없는 것"과 "못 읽는 것"은 다른 상태라 구분해서 보여준다.
+    var sharedContainerAvailable = true
 
     /// 위젯은 "탭 한 번에 바코드"만 약속한다.
     /// 페이 앱 카드는 앱을 거쳐야 해서 홉이 하나 늘기 때문에 여기 올리지 않는다.
     static func current() -> WalletEntry {
         let items = RankingEngine.ordered(WalletStorage.load())
             .filter { $0.barcode != nil }
-        return WalletEntry(date: Date(), items: items)
+        return WalletEntry(
+            date: Date(),
+            items: items,
+            sharedContainerAvailable: WalletStorage.isSharedContainerAvailable
+        )
     }
 
     static let placeholder = WalletEntry(

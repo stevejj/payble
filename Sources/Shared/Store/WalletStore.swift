@@ -14,6 +14,9 @@ final class WalletStore: ObservableObject {
 
     var membershipItems: [WalletItem] { items.filter { $0.kind == .membership } }
 
+    /// 전체화면으로 띄울 수 있는 맨 앞 카드. "맨 앞 카드 열기" 경로가 이걸 쓴다.
+    var topBarcodeItem: WalletItem? { items.first { $0.barcode != nil } }
+
     func item(id: UUID) -> WalletItem? { items.first { $0.id == id } }
 
     func upsert(_ item: WalletItem) {
