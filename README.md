@@ -117,6 +117,8 @@ brew install xcodegen   # 처음 한 번만
 make open               # project.yml → Walletless.xcodeproj 생성 후 열기
 ```
 
+맥북에 아무것도 깔려 있지 않다면 **[docs/mac-setup.md](docs/mac-setup.md)** 를 따라가면 됩니다.
+
 Xcode에서 두 가지만 본인 것으로 바꾸면 바로 실행됩니다.
 
 1. **App Group** — `Sources/Shared/AppGroup.swift`의 `identifier`, 그리고 두 entitlements 파일
