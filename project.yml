@@ -1,0 +1,55 @@
+name: Walletless
+options:
+  bundleIdPrefix: com.example
+  deploymentTarget:
+    iOS: "17.0"
+  createIntermediateGroups: true
+
+settings:
+  base:
+    SWIFT_VERSION: "5.9"
+    MARKETING_VERSION: "0.1.0"
+    CURRENT_PROJECT_VERSION: "1"
+    TARGETED_DEVICE_FAMILY: "1"   # 아이폰 전용
+    CODE_SIGN_STYLE: Automatic
+    DEVELOPMENT_TEAM: ""          # 본인 팀 ID를 넣거나 Xcode에서 선택
+
+targets:
+  Walletless:
+    type: application
+    platform: iOS
+    sources:
+      - path: Sources/App
+        excludes:
+          - "Resources/Info.plist"
+          - "Resources/Walletless.entitlements"
+      - path: Sources/Shared
+    settings:
+      base:
+        PRODUCT_NAME: Walletless
+        PRODUCT_BUNDLE_IDENTIFIER: com.example.walletless
+        INFOPLIST_FILE: Sources/App/Resources/Info.plist
+        CODE_SIGN_ENTITLEMENTS: Sources/App/Resources/Walletless.entitlements
+        GENERATE_INFOPLIST_FILE: "NO"
+    dependencies:
+      - target: WalletlessWidget
+        embed: true
+        codeSign: true
+
+  WalletlessWidget:
+    type: app-extension
+    platform: iOS
+    sources:
+      - path: Sources/Widget
+        excludes:
+          - "Info.plist"
+          - "WalletlessWidget.entitlements"
+      - path: Sources/Shared
+    settings:
+      base:
+        PRODUCT_NAME: WalletlessWidget
+        PRODUCT_BUNDLE_IDENTIFIER: com.example.walletless.widget
+        INFOPLIST_FILE: Sources/Widget/Info.plist
+        CODE_SIGN_ENTITLEMENTS: Sources/Widget/WalletlessWidget.entitlements
+        GENERATE_INFOPLIST_FILE: "NO"
+        SKIP_INSTALL: "YES"
