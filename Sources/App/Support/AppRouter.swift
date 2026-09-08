@@ -79,14 +79,13 @@ final class AppRouter: ObservableObject {
 }
 
 enum PayAppLauncher {
-    /// 확인된 scheme이 있으면 그것부터. 없으면 후보를 차례로 시도하고,
-    /// 성공한 scheme을 기억해 다음부터 바로 쓴다.
+    /// 후보를 카탈로그 순서대로 시도하고, 열린 것을 기록해 둔다.
+    ///
+    /// 기록해 둔 것을 앞으로 당기지는 않는다. 후보 순서는 기기에서 확인한 결과를
+    /// 반영해 카탈로그가 정하는데, 옛 선택이 그것을 덮어쓰면 순서를 고쳐도 소용이 없다.
+    /// canOpenURL은 값싸서 매번 확인해도 된다.
     static func open(_ app: PayApp) {
-        var candidates = app.schemeCandidates
-        if let resolved = ResolvedScheme.get(app.id) {
-            candidates = [resolved] + candidates.filter { $0 != resolved }
-        }
-        for candidate in candidates {
+        for candidate in app.schemeCandidates {
             guard let url = URL(string: candidate), UIApplication.shared.canOpenURL(url) else { continue }
             ResolvedScheme.set(candidate, for: app.id)
             UIApplication.shared.open(url)

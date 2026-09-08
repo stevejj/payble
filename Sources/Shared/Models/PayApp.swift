@@ -22,10 +22,14 @@ struct PayApp: Identifiable, Hashable, Sendable {
 
 enum PayAppCatalog {
     static let all: [PayApp] = [
+        // 2026-09-08 실기기 확인:
+        //   kakaotalk://kakaopay/home  화면이 정상적으로 열림 (결제 화면까지는 못 감)
+        //   kakaopay://                "연결할 수 없는 화면입니다" 오류
+        // 그래서 오류가 나는 쪽을 뒤로 뺐다. 순서는 추측이 아니라 기기에서 본 결과다.
         PayApp(
             id: "kakaopay",
             name: "카카오페이",
-            schemeCandidates: ["kakaopay://", "kakaotalk://kakaopay/home", "kakaotalk://"],
+            schemeCandidates: ["kakaotalk://kakaopay/home", "kakaopay://", "kakaotalk://"],
             tintHex: "#FEE500"
         ),
         PayApp(
@@ -63,7 +67,10 @@ enum PayAppCatalog {
     }
 }
 
-/// 기기에서 확인된 scheme을 기억해 둔다. 다음부터는 바로 그것으로 연다.
+/// 기기에서 확인된 scheme을 기록해 둔다. 진단 화면이 무엇이 쓰이는지 보여줄 때 쓴다.
+///
+/// 여는 순서를 여기에 맡기지는 않는다. 한 번 저장된 값이 계속 앞에 서면,
+/// 나중에 더 나은 후보를 1순위로 올려도 옛 선택이 이겨 버린다.
 enum ResolvedScheme {
     private static let key = "resolvedSchemes"
 
