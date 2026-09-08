@@ -63,6 +63,16 @@ Xcode에서 두 가지만 본인 것으로 바꾸면 바로 실행됩니다.
 
 바코드 스캔과 밝기 조절은 시뮬레이터에서 확인할 수 없습니다. 실기기로 테스트하세요.
 
+### 맥이 없다면
+
+`.github/workflows/ios-build.yml`이 PR마다 macOS 러너에서 `xcodegen` + `xcodebuild`를 돌립니다.
+컴파일 오류는 PR의 체크 결과로 확인할 수 있습니다 — 맥 없이도 코드가 빌드되는지는 알 수 있습니다.
+다만 **실기기 설치는 별개**입니다. 아이폰에 올리려면 Apple Developer Program 가입 후
+App Store Connect API 키로 CI에서 서명·업로드해 TestFlight로 받는 경로가 필요합니다.
+
+private 리포지토리라 macOS 실행 시간은 무료 한도에서 10배로 차감됩니다.
+그래서 워크플로에 경로 필터와 중복 실행 취소를 걸어 두었습니다.
+
 ## 구조
 
 ```

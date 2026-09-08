@@ -53,3 +53,11 @@ targets:
         CODE_SIGN_ENTITLEMENTS: Sources/Widget/WalletlessWidget.entitlements
         GENERATE_INFOPLIST_FILE: "NO"
         SKIP_INSTALL: "YES"
+
+# xcodebuild가 -scheme으로 찾을 수 있도록 공유 스킴을 명시한다.
+# (스킴이 없으면 CI에서 "scheme not found"로 떨어진다)
+schemes:
+  Walletless:
+    build:
+      targets:
+        Walletless: all

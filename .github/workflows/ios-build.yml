@@ -1,0 +1,62 @@
+name: iOS Build
+
+# 맥 없이 컴파일을 확인하기 위한 워크플로.
+# 결과는 PR의 체크와 Actions 탭에서 아이폰으로 바로 볼 수 있다.
+on:
+  pull_request:
+    paths:
+      - "Sources/**"
+      - "project.yml"
+      - ".github/workflows/ios-build.yml"
+  push:
+    branches: [main]
+    paths:
+      - "Sources/**"
+      - "project.yml"
+      - ".github/workflows/ios-build.yml"
+  workflow_dispatch:
+
+# private 리포지토리라 macOS 분이 10배로 차감된다. 중복 실행은 취소한다.
+concurrency:
+  group: ios-build-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: macos-latest
+    timeout-minutes: 25
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Xcode 버전 확인
+        run: xcodebuild -version
+
+      - name: XcodeGen 설치
+        run: brew install xcodegen
+
+      - name: 프로젝트 생성
+        run: xcodegen generate
+
+      # 시뮬레이터 타겟이라 서명이 필요 없다. 순수하게 컴파일만 확인한다.
+      - name: 빌드 (iOS 시뮬레이터)
+        run: |
+          set -o pipefail
+          xcodebuild build \
+            -project Walletless.xcodeproj \
+            -scheme Walletless \
+            -configuration Debug \
+            -destination 'generic/platform=iOS Simulator' \
+            CODE_SIGNING_ALLOWED=NO \
+            -quiet
+
+      - name: 결과 요약
+        if: always()
+        run: |
+          if [ "${{ job.status }}" = "success" ]; then
+            echo "### ✅ 빌드 성공" >> "$GITHUB_STEP_SUMMARY"
+            echo "앱과 위젯 두 타겟 모두 컴파일됐습니다." >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "### ❌ 빌드 실패" >> "$GITHUB_STEP_SUMMARY"
+            echo "위의 \`빌드 (iOS 시뮬레이터)\` 단계 로그에서 \`error:\` 로 시작하는 줄을 보세요." >> "$GITHUB_STEP_SUMMARY"
+          fi
